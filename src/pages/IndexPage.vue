@@ -2,9 +2,11 @@
   <q-page class="row q-pt-xl">
     <div class="full-width q-px-xl">
       <div class="q-mb-xl">
-        <q-input v-model="tempData.name" label="姓名" />
-        <q-input v-model="tempData.age" label="年齡" />
-        <q-btn color="primary" class="q-mt-md">新增</q-btn>
+        <q-input v-model="tempData.name" label="姓名" ref="nameInput" />
+        <q-input v-model="tempData.age" label="年齡" type="number" ref="ageInput" />
+        <q-btn v-if="!currentEditId" color="primary" class="q-mt-md" @click="handleAddDataBtn" :disable="isLoading">新增</q-btn>
+        <q-btn v-if="!!currentEditId" color="primary" class="q-mt-md" @click="handleEditDataBtn" :disable="isLoading">編輯</q-btn>
+        <q-btn v-if="!!currentEditId" color="primary" class="q-mt-md" @click="handleCaneclEditBtn" :disable="isLoading">取消編輯</q-btn>
       </div>
 
       <q-table
@@ -80,18 +82,16 @@
 <script setup lang="ts">
 import axios from 'axios';
 import { QTableProps } from 'quasar';
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 interface btnType {
   label: string;
   icon: string;
   status: string;
 }
-const blockData = ref([
-  {
-    name: 'test',
-    age: 25,
-  },
-]);
+const isLoading = ref(false);
+const currentEditId = ref('');
+const blockData = ref([]);
+
 const tableConfig = ref([
   {
     label: '姓名',
@@ -123,9 +123,87 @@ const tempData = ref({
   name: '',
   age: '',
 });
-function handleClickOption(btn, data) {
-  // ...
+
+async function getData() {
+  try {
+    const response = await axios.get('https://dahua.metcfire.com.tw/api/CRUDTest/a'); // 替換成你的 API 路徑
+    blockData.value = response.data;
+  } catch (error) {
+    console.error('get fail: ', error);
+  }
 }
+async function addData() {
+  try {
+    const response = await axios.post('https://dahua.metcfire.com.tw/api/CRUDTest', tempData.value); // 替換成你的 API 路徑
+  } catch (error) {
+    console.error('add fail: ', error);
+  }
+}
+async function editData() {
+  try {
+    const response = await axios.patch('https://dahua.metcfire.com.tw/api/CRUDTest', {
+      ...tempData.value,
+      id: currentEditId.value
+    }); // 替換成你的 API 路徑
+  } catch (error) {
+    console.error('edit fail: ', error);
+  }
+}
+async function deleteData(id) {
+  try {
+    const response = await axios.delete(`https://dahua.metcfire.com.tw/api/CRUDTest/${id}`); // 替換成你的 API 路徑
+  } catch (error) {
+    console.error('delete fail: ', error);
+  }
+}
+
+async function handleClickOption(btn, data) {
+  switch (btn.status) {
+    case 'edit':
+      currentEditId.value = data.id
+      tempData.value = {
+        name: data.name,
+        age: data.age
+      }
+      // await editData(data)
+      break;
+    case 'delete':
+      isLoading.value = true
+      await deleteData(data.id)
+      await getData()
+      isLoading.value = false
+      break;
+    default:
+      break;
+  }
+}
+
+async function handleAddDataBtn() {
+  isLoading.value = true
+  await addData()
+  await getData()
+  isLoading.value = false
+}
+
+async function handleEditDataBtn() {
+  isLoading.value = true
+  await editData()
+  await getData()
+  isLoading.value = false
+  currentEditId.value = ''
+  tempData.value = {
+    name: '',
+    age: '',
+  }
+}
+
+function handleCaneclEditBtn() {
+  currentEditId.value = ''
+}
+
+onMounted(() => {
+  getData();
+});
 </script>
 
 <style lang="scss" scoped>
